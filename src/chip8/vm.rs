@@ -131,10 +131,10 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                         break;
                     }
                     let byte = self.memory[self.i as usize + i as usize];
-                    for off in 0..7 {
+                    for off in 0..8 {
                         let bit = ((byte & (0x1 << off)) >> off) == 1;
                         if bit {
-                            self.update_pixel((x+off) as usize, (y+i as u8) as usize, false);
+                            self.update_pixel((x+8-off) as usize, (y+i as u8) as usize, false);
                         }
                     }
                 }
