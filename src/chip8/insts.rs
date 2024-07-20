@@ -8,6 +8,10 @@ pub enum Instruction {
     Draw(u16, u16, u16),
     Call(u16), // addr
     Ret,
+    SkipNextInstruction(u16, u16),
+    NSkipNextInstruction(u16, u16),
+    R2SkipNextInstruction(u16, u16),
+    NR2SkipNextInstruction(u16, u16),
 
     ERROR(u16), // unknown opcode
 }
@@ -34,9 +38,23 @@ impl Instruction {
                 return Instruction::Jump(val);
             }
 
-            (0x1, n1, n2, n3) => {
+            (0x2, n1, n2, n3) => {
                 let val: u16 = n1 << 8 | n2 << 4 | n3;
                 return Instruction::Call(val);
+            }
+
+            (0x3, x, n1, n2) => {
+                let val: u16 = n1 << 8 | n2;
+                return Instruction::SkipNextInstruction(x, val);
+            }
+
+            (0x4, x, n1, n2) => {
+                let val: u16 = n1 << 8 | n2;
+                return Instruction::NSkipNextInstruction(x, val);
+            }
+
+            (0x5, x, y, 0x0) => {
+                return Instruction::R2SkipNextInstruction(x, y);
             }
 
             (0x6, x, n1, n2) => {
@@ -47,6 +65,10 @@ impl Instruction {
             (0x7, x, n1, n2) => {
                 let val: u8 = (n1 << 4 | n2).try_into().unwrap();
                 return Instruction::AddRegister(x.try_into().unwrap(), val);
+            }
+
+            (0x9, x, y, 0x0) => {
+                return Instruction::NR2SkipNextInstruction(x, y);
             }
 
             (0xa, n1, n2, n3) => {

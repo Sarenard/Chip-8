@@ -151,6 +151,36 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                 self.nbstack -= 1
             }
 
+            Instruction::SkipNextInstruction(reg, val) => {
+                let val_reg = self.registers[reg as usize] as u16;
+                if val_reg == val {
+                    self.programcounter += 2;
+                }
+            }
+
+            Instruction::NSkipNextInstruction(reg, val) => {
+                let val_reg = self.registers[reg as usize] as u16;
+                if val_reg != val {
+                    self.programcounter += 2;
+                }
+            }
+
+            Instruction::R2SkipNextInstruction(reg1, reg2) => {
+                let val_reg1 = self.registers[reg1 as usize] as u16;
+                let val_reg2 = self.registers[reg2 as usize] as u16;
+                if val_reg1 == val_reg2 {
+                    self.programcounter += 2;
+                }
+            }
+
+            Instruction::NR2SkipNextInstruction(reg1, reg2) => {
+                let val_reg1 = self.registers[reg1 as usize] as u16;
+                let val_reg2 = self.registers[reg2 as usize] as u16;
+                if val_reg1 != val_reg2 {
+                    self.programcounter += 2;
+                }
+            }
+
             Instruction::ERROR(nb) => {
                 panic!("Bytecode not understood : {}", nb);
             }
