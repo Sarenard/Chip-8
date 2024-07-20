@@ -1,9 +1,9 @@
 extern crate sdl;
-
 use sdl::video::{SurfaceFlag, VideoFlag};
 use sdl::event::{Event, Key};
+use sdl::Rect;
 
-use ux::{u12, u4};
+use std;
 
 mod chip8;
 
@@ -12,12 +12,22 @@ use chip8::vm::{
     PixelHandler,
 };
 
-struct BasicPixelHandler;
+struct BasicPixelHandler<'a> {
+    screen: &'a mut sdl::video::Surface,
+}
 
-impl PixelHandler for BasicPixelHandler {
+impl<'a> PixelHandler for BasicPixelHandler<'a> {
     fn set_pixel(&mut self, x: usize, y: usize, on: bool) {
-        // Example implementation for setting a pixel
-        println!("Setting pixel at ({}, {}) on/off : {}", x, y, on);
+        let rect = Rect {
+            x: (x as isize * SIZE) as i16,
+            y: (y as isize * SIZE) as i16,
+            w: SIZE as u16,
+            h: SIZE as u16,
+        };
+
+        let color = if on { sdl::video::RGB(255, 255, 255) } else { sdl::video::RGB(0, 0, 0) };
+        self.screen.fill_rect(Some(rect), color);
+        self.screen.flip();
     }
 }
 
@@ -25,7 +35,7 @@ impl PixelHandler for BasicPixelHandler {
 struct BasicKeyboardHandler;
 
 impl KeyboardHandler for BasicKeyboardHandler {
-    fn is_pressed(&mut self, key: u4) -> bool {
+    fn is_pressed(&mut self, key: u8) -> bool {
         // Example implementation for checking if a key is pressed
         println!("Checking if key {} is pressed", key);
         false // For example purposes, always return false
@@ -39,28 +49,28 @@ fn main() {
     sdl::init(&[sdl::InitFlag::Video]);
     sdl::wm::set_caption("Chip-8", "rust-sdl");
 
-    let screen = match sdl::video::set_video_mode(64 * SIZE, 32 * SIZE, 32,
+    let mut screen = match sdl::video::set_video_mode(64 * SIZE, 32 * SIZE, 32,
                                                   &[SurfaceFlag::HWSurface],
                                                   &[VideoFlag::DoubleBuf]) {
         Ok(screen) => screen,
         Err(err) => panic!("failed to set video mode: {}", err)
     };
 
-    let pixel_handler = BasicPixelHandler;
+    let pixel_handler = BasicPixelHandler {
+        screen: &mut screen
+    };
     let keyboard_handler = BasicKeyboardHandler;
 
-    let mut vm = chip8::vm::VM {
-        bytecode: [[u4::new(0); 4]; 4096],
-        memory: [0; 4096],
-        stack: [0; 256],
-        registers: [0; 16],
-        adress: u12::new(0),
-        delaytimer: 0,
-        soundtimer: 0,
-        keystates: [false; 16],
-        pixelhandler: pixel_handler,
-        keyboardhandler: keyboard_handler,
-    };
+    let mut vm = chip8::vm::VM ::new(
+        pixel_handler,
+        keyboard_handler
+    );
+
+    // read bytes from file
+    let content = std::fs::read("roms/IBM Logo.ch8").unwrap();
+    println!("content : {:?}", content);
+
+    vm.setmemory(content);
 
     'main : loop {
         'event : loop {
