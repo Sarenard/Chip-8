@@ -35,7 +35,7 @@ pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     pub memory: [u8; 4096], // 4096 bytes
     registers: [u8; 16], // 8-bit data registers
     stack: [u16; 16],
-    nbstack: usize,
+    nbstack: isize,
     i: u16,
     programcounter: usize,
     delaytimer: u8,
@@ -54,7 +54,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             memory: memory,
             registers: [0; 16],
             stack: [0; 16],
-            nbstack: 0,
+            nbstack: -1,
             i: 0,
             programcounter: 0x200, // start of programs
             delaytimer: 0,
