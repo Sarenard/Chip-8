@@ -6,6 +6,8 @@ pub enum Instruction {
     AddRegister(u8, u8),
     SetI(u16),
     Draw(u16, u16, u16),
+    Call(u16), // addr
+    Ret,
 
     ERROR(u16), // unknown opcode
 }
@@ -23,9 +25,18 @@ impl Instruction {
                 return Instruction::ClearScreen;
             }
 
+            (0x0, 0x0, 0xe, 0xe) => {
+                return Instruction::Ret;
+            }
+
             (0x1, n1, n2, n3) => {
                 let val: u16 = n1 << 8 | n2 << 4 | n3;
                 return Instruction::Jump(val);
+            }
+
+            (0x1, n1, n2, n3) => {
+                let val: u16 = n1 << 8 | n2 << 4 | n3;
+                return Instruction::Call(val);
             }
 
             (0x6, x, n1, n2) => {

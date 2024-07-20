@@ -35,7 +35,7 @@ pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     pub memory: [u8; 4096], // 4096 bytes
     registers: [u8; 16], // 8-bit data registers
     stack: [u16; 16],
-    nbstack: isize,
+    nbstack: usize,
     i: u16,
     programcounter: usize,
     delaytimer: u8,
@@ -54,7 +54,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             memory: memory,
             registers: [0; 16],
             stack: [0; 16],
-            nbstack: -1,
+            nbstack: 0,
             i: 0,
             programcounter: 0x200, // start of programs
             delaytimer: 0,
@@ -138,6 +138,17 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                         }
                     }
                 }
+            }
+
+            Instruction::Call(addr) => {
+                self.nbstack += 1;
+                self.stack[self.nbstack - 1] = addr;
+                self.programcounter = addr as usize;
+            }
+
+            Instruction::Ret => {
+                self.programcounter = self.stack[self.nbstack - 1] as usize;
+                self.nbstack -= 1
             }
 
             Instruction::ERROR(nb) => {
