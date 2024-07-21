@@ -45,6 +45,7 @@ impl KeyboardHandler for BasicKeyboardHandler {
 static SIZE: isize = 10;
 
 fn main() {
+    // TODO : take a file path in argument and differenciate ch8/a8
 
     sdl::init(&[sdl::InitFlag::Video]);
     sdl::wm::set_caption("Chip-8", "rust-sdl");
