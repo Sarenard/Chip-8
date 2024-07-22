@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chip-8-compiler = "0.1.1"
 sdl = "0.3.6"
 ux = "0.1.6" # no external dependancies
 clap = { version = "4.5.9", features = ["derive"] }
