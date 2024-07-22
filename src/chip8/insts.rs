@@ -30,6 +30,8 @@ pub enum Instruction {
     StoreBCD(u16),
     StoreRegisters(u16),
     ReadRegisters(u16),
+    SkipIfPressed(u16),
+    SkipIfNotPressed(u16),
 
     ERROR(u16), // unknown opcode
 }
@@ -132,6 +134,14 @@ impl Instruction {
 
             (0xd, x, y, n) => {
                 return Instruction::Draw(x, y, n);
+            }
+
+            (0xe, x, 0x9, 0xe) => {
+                return Instruction::SkipIfPressed(x);
+            }
+
+            (0xe, x, 0xa, 0x1) => {
+                return Instruction::SkipIfNotPressed(x);
             }
             
             (0xf, x, 0x0, 0x7) => {

@@ -3,6 +3,8 @@ use sdl::video::{SurfaceFlag, VideoFlag};
 use sdl::event::{Event, Key};
 use sdl::Rect;
 
+use std::time::{self, SystemTime, UNIX_EPOCH};
+
 use clap::Parser;
 
 use std;
@@ -29,22 +31,22 @@ impl<'a> PixelHandler for BasicPixelHandler<'a> {
 
         let color = if on { sdl::video::RGB(255, 255, 255) } else { sdl::video::RGB(0, 0, 0) };
         self.screen.fill_rect(Some(rect), color);
-        self.screen.flip();
     }
 }
 
 // Example struct implementing the KeyboardHandler trait
-struct BasicKeyboardHandler;
+struct BasicKeyboardHandler {
+    status: [bool; 16],
+}
 
 impl KeyboardHandler for BasicKeyboardHandler {
     fn is_pressed(&mut self, key: u8) -> bool {
-        // Example implementation for checking if a key is pressed
-        println!("Checking if key {} is pressed", key);
-        false // For example purposes, always return false
+        self.status[key as usize]
     }
 }
 
 static SIZE: isize = 10;
+static FPS: u128 = 60;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -71,7 +73,9 @@ fn main() {
     let pixel_handler = BasicPixelHandler {
         screen: &mut screen
     };
-    let keyboard_handler = BasicKeyboardHandler;
+    let keyboard_handler = BasicKeyboardHandler {
+        status: [false; 16],
+    };
 
     let mut vm = chip8::vm::VM ::new(
         pixel_handler,
@@ -84,19 +88,41 @@ fn main() {
 
     vm.setmemory(content);
 
+    let mut last = SystemTime::now();
+
+    let accepted = [
+        Key::Num1, Key::Num2, Key::Num3, Key::Num4,
+        Key::A,    Key::Z,    Key::E,    Key::R,
+        Key::Q,    Key::S,    Key::D,    Key::F,
+        Key::W,    Key::X,    Key::C,    Key::V,
+    ];
+
     'main : loop {
         'event : loop {
             match sdl::event::poll_event() {
                 Event::Quit => break 'main,
                 Event::None => break 'event,
-                Event::Key(k, _, _, _)
-                    if k == Key::Escape
-                        => break 'main,
+                Event::Key(k, is_pressed, _, _) => {
+                    if k == Key::Escape {
+                        break 'main;
+                    }
+                    if accepted.contains(&k) {
+                        let nb = accepted.iter().position(|&x| x == k).unwrap();
+                        vm.keyboardhandler.status[nb] = is_pressed;
+                    }
+                }
                 _ => {}
             }
         }
         // we do one tick
+        let time = SystemTime::now().duration_since(last).unwrap();
+        if time.as_millis() > 1000 / FPS {// 16/60, 60FPS
+            last = SystemTime::now();
+            vm.decrease_timer();
+        }
         vm.process();
+        vm.pixelhandler.screen.flip();
+        println!("{:?}", vm.keyboardhandler.status);
     }
 
     sdl::quit();

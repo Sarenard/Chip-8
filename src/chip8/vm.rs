@@ -31,6 +31,10 @@ static FONT: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
+static KEYBOARDMAP: [usize; 16] = [
+    13, 0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 14, 3, 7, 11, 15
+];
+
 pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     pub memory: [u8; 4096], // 4096 bytes
     registers: [u8; 16], // 8-bit data registers
@@ -40,8 +44,8 @@ pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     delaytimer: u8,
     soundtimer: u8,
     keystates: [bool; 16], // what keys are pressed
-    pixelhandler: T,
-    keyboardhandler: T2,
+    pub pixelhandler: T,
+    pub keyboardhandler: T2,
     framebuffer: [[bool; 32]; 64],
 }
 
@@ -76,6 +80,15 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
     pub fn check_key(&mut self, key: u8) -> bool {
         self.keyboardhandler.is_pressed(key)
+    }
+
+    pub fn decrease_timer(&mut self) {
+        if self.delaytimer > 0 {
+            self.delaytimer -= 1;
+        }
+        if self.soundtimer > 0 {
+            self.soundtimer -= 1;
+        }
     }
 
     pub fn setmemory(&mut self, content: Vec<u8>) {
@@ -242,15 +255,51 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                 self.i += self.registers[reg as usize] as u16;
             }
 
-            Instruction::ReadDelay(_) |
+            Instruction::ReadDelay(a) => {
+                self.registers[a as usize] = self.delaytimer;
+            }
 
-            Instruction::WaitKey(_) |
+            Instruction::SetDelay(a) => {
+                self.delaytimer = self.registers[a as usize];
+            }
+            
+            Instruction::SkipIfPressed(x) => {
+                let val = self.registers[x as usize];
+                let key_pressed = self.check_key(val);
+                if key_pressed {
+                    self.programcounter += 2;
+                }
+            }
 
-            Instruction::SetDelay(_) |
+            Instruction::SkipIfNotPressed(x) => {
+                let val = self.registers[x as usize];
+                let key_pressed = self.check_key(val);
+                if !key_pressed {
+                    self.programcounter += 2;
+                }
+            }
 
-            Instruction::SetSound(_) |
+            Instruction::WaitKey(x) => {
+                while !self.check_key(self.registers[x as usize]) {
 
-            Instruction::SpriteDigit(_) |
+                }
+            }
+
+            Instruction::SetSound(x) => {
+                self.soundtimer = self.registers[x as usize];
+            }
+
+            Instruction::SpriteDigit(x) => {
+                let val = self.registers[x as usize];
+                match val {
+                    val if val > 9 => {
+                        panic!("Too big !");
+                    }
+                    val =>  {
+                        self.i = 5*val as u16;
+                    }
+                }
+            }
 
             Instruction::StoreBCD(_) |
 
