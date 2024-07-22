@@ -3,7 +3,11 @@ use sdl::video::{SurfaceFlag, VideoFlag};
 use sdl::event::{Event, Key};
 use sdl::Rect;
 
-use std::time::{self, SystemTime, UNIX_EPOCH};
+use core::time;
+use std::{
+    time::SystemTime,
+    thread
+};
 
 use clap::Parser;
 
@@ -56,10 +60,39 @@ struct Args {
     file: String,
 }
 
-fn main() {
-    // TODO : take a file path in argument and differenciate ch8/a8
-    let args = Args::parse();
 
+#[cfg(test)]
+mod tests {
+    use crate::run_emulator;
+
+    #[test]
+    fn chip8logo() {
+        run_emulator("./roms/tests/1-chip8-logo.ch8".to_string(), true);
+    }
+
+    #[test]
+    fn ibmlogo() {
+        run_emulator("./roms/tests/2-ibm-logo.ch8".to_string(), true);
+    }
+
+    #[test]
+    fn corax() {
+        run_emulator("./roms/tests/3-corax+.ch8".to_string(), true);
+    }
+
+    #[test]
+    fn flags() {
+        run_emulator("./roms/tests/4-flags.ch8".to_string(), true);
+    }
+
+    #[test]
+    fn quirks() {
+        run_emulator("./roms/tests/5-quirks.ch8".to_string(), true);
+    }
+
+}
+
+fn run_emulator(path: String, test:bool) {
     sdl::init(&[sdl::InitFlag::Video]);
     sdl::wm::set_caption("Chip-8", "rust-sdl");
 
@@ -83,7 +116,8 @@ fn main() {
     );
 
     // read bytes from file
-    let content = std::fs::read(args.file).unwrap();
+    let content = std::fs::read(path).unwrap();
+    #[cfg(debug_assertions)]
     println!("content : {:?}", content);
 
     vm.setmemory(content);
@@ -106,6 +140,10 @@ fn main() {
                     if k == Key::Escape {
                         break 'main;
                     }
+                    if test && is_pressed {
+                        thread::sleep(time::Duration::from_millis(500));
+                        panic!("Test failed !");
+                    }
                     if accepted.contains(&k) {
                         let nb = accepted.iter().position(|&x| x == k).unwrap();
                         vm.keyboardhandler.status[nb] = is_pressed;
@@ -122,8 +160,16 @@ fn main() {
         }
         vm.process();
         vm.pixelhandler.screen.flip();
+        #[cfg(debug_assertions)]
         println!("{:?}", vm.keyboardhandler.status);
     }
 
     sdl::quit();
+}
+
+fn main() {
+    // TODO : take a file path in argument and differenciate ch8/a8
+    let args = Args::parse();
+
+    run_emulator(args.file, false);
 }

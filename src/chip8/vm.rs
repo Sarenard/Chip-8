@@ -43,7 +43,6 @@ pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     programcounter: usize,
     delaytimer: u8,
     soundtimer: u8,
-    keystates: [bool; 16], // what keys are pressed
     pub pixelhandler: T,
     pub keyboardhandler: T2,
     framebuffer: [[bool; 32]; 64],
@@ -61,7 +60,6 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             programcounter: 0x200, // start of programs
             delaytimer: 0,
             soundtimer: 0,
-            keystates: [false; 16],
             pixelhandler,
             keyboardhandler,
             framebuffer: [[false; 32]; 64],
@@ -69,6 +67,9 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
     }
 
     pub fn update_pixel(&mut self, x: usize, y: usize, forceblack: bool) {
+        if x >= 64 || y >= 32 {
+            panic!("Out of bounds write");
+        }
         if forceblack {
             self.pixelhandler.set_pixel(x, y, false);
             self.framebuffer[x][y] = false;
@@ -106,6 +107,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
         let instruction = chip8::insts::Instruction::new(instruction);
 
+        #[cfg(debug_assertions)]
         println!("instruction : {:?}", instruction);
 
         match instruction {
@@ -145,7 +147,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                     for off in 0..8 {
                         let bit = ((byte & (0x1 << off)) >> off) == 1;
                         if bit {
-                            self.update_pixel((x+8-off) as usize, (y+i as u8) as usize, false);
+                            self.update_pixel((x+7-off) as usize, (y+i as u8) as usize, false);
                         }
                     }
                 }
@@ -153,7 +155,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
             Instruction::Call(addr) => {
                 self.stack.push(self.programcounter as u16);
-                self.programcounter = addr as usize;
+                self.programcounter = addr as usize - 2;
             }
 
             Instruction::Ret => {
@@ -170,7 +172,6 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
             Instruction::SkipNextInstruction(reg, val) => {
                 let val_reg = self.registers[reg as usize] as u16;
-                println!("{} {} {}", val_reg, val, val_reg == val);
                 if val_reg == val {
                     self.programcounter += 2;
                 }
@@ -232,7 +233,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                 self.registers[a as usize] = reg1.wrapping_sub(reg2);
             }
 
-            Instruction::SHR(a, _) => {
+            Instruction::SHR(a) => {
                 let reg1 = self.registers[a as usize];
                 self.registers[15] = reg1%2;
                 self.registers[a as usize] = self.registers[a as usize] / 2;
@@ -245,7 +246,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                 self.registers[a as usize] = reg2.wrapping_sub(reg1);
             }
 
-            Instruction::SHL(a, _) => {
+            Instruction::SHL(a) => {
                 let reg1 = self.registers[a as usize];
                 self.registers[15] = (reg1 & 0x80) as u8;
                 self.registers[a as usize] = reg1.wrapping_mul(2);
@@ -265,7 +266,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             
             Instruction::SkipIfPressed(x) => {
                 let val = self.registers[x as usize];
-                let key_pressed = self.check_key(val);
+                let key_pressed = self.check_key(KEYBOARDMAP[val as usize] as u8);
                 if key_pressed {
                     self.programcounter += 2;
                 }
@@ -273,14 +274,14 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
             Instruction::SkipIfNotPressed(x) => {
                 let val = self.registers[x as usize];
-                let key_pressed = self.check_key(val);
+                let key_pressed = self.check_key(KEYBOARDMAP[val as usize] as u8);
                 if !key_pressed {
                     self.programcounter += 2;
                 }
             }
 
             Instruction::WaitKey(x) => {
-                while !self.check_key(self.registers[x as usize]) {
+                while !self.check_key(self.registers[KEYBOARDMAP[x as usize]]) {
 
                 }
             }

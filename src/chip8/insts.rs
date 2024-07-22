@@ -18,17 +18,20 @@ pub enum Instruction {
     XOR(u16, u16),
     ADD(u16, u16),
     SUB(u16, u16),
-    SHR(u16, u16),
+    SHR(u16),
     SUBN(u16, u16),
-    SHL(u16, u16),
+    SHL(u16),
     ReadDelay(u16),
     WaitKey(u16),
     SetDelay(u16),
     SetSound(u16),
     AddI(u16),
     SpriteDigit(u16),
+    #[allow(dead_code)]
     StoreBCD(u16),
+    #[allow(dead_code)]
     StoreRegisters(u16),
+    #[allow(dead_code)]
     ReadRegisters(u16),
     SkipIfPressed(u16),
     SkipIfNotPressed(u16),
@@ -43,6 +46,7 @@ impl Instruction {
         let lower2 = (value & 0x0F00) >> 8;
         let upper2 = (value & 0xF000) >> 12;
 
+        #[cfg(debug_assertions)]
         println!("{:#01x} {:#01x} {:#01x} {:#01x}", upper2, lower2, upper1, lower1);
         match (upper2, lower2, upper1, lower1) {
             (0x0, 0x0, 0xe, 0x0) => {
@@ -111,16 +115,16 @@ impl Instruction {
                 return Instruction::SUB(x, y);
             }
 
-            (0x8, x, y, 0x6) => {
-                return Instruction::SHR(x, y);
+            (0x8, x, _y, 0x6) => {
+                return Instruction::SHR(x);
             }
 
             (0x8, x, y, 0x7) => {
                 return Instruction::SUBN(x, y);
             }
 
-            (0x8, x, y, 0xE) => {
-                return Instruction::SHL(x, y);
+            (0x8, x, _y, 0xE) => {
+                return Instruction::SHL(x);
             }
 
             (0x9, x, y, 0x0) => {
