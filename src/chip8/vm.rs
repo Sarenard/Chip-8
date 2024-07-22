@@ -307,7 +307,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             Instruction::StoreRegisters(_) |
 
             Instruction::ReadRegisters(_)  => {
-                
+                todo!()
             }
         }
 
