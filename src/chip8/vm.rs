@@ -34,8 +34,7 @@ static FONT: [u8; 80] = [
 pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     pub memory: [u8; 4096], // 4096 bytes
     registers: [u8; 16], // 8-bit data registers
-    stack: [u16; 16],
-    nbstack: usize,
+    stack: Vec<u16>,
     i: u16,
     programcounter: usize,
     delaytimer: u8,
@@ -53,8 +52,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
         VM {
             memory: memory,
             registers: [0; 16],
-            stack: [0; 16],
-            nbstack: 0,
+            stack: vec![],
             i: 0,
             programcounter: 0x200, // start of programs
             delaytimer: 0,
@@ -115,7 +113,7 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             }
 
             Instruction::AddRegister(reg, val) => {
-                self.registers[reg as usize] += val;
+                self.registers[reg as usize] = (val as usize + self.registers[reg as usize] as usize) as u8;
             }
 
             Instruction::SetI(val) => {
@@ -141,18 +139,25 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             }
 
             Instruction::Call(addr) => {
-                self.nbstack += 1;
-                self.stack[self.nbstack - 1] = addr;
+                self.stack.push(self.programcounter as u16);
                 self.programcounter = addr as usize;
             }
 
             Instruction::Ret => {
-                self.programcounter = self.stack[self.nbstack - 1] as usize;
-                self.nbstack -= 1
+                let val = self.stack.pop();
+                match val {
+                    Some(value) => {
+                        self.programcounter = value as usize;
+                    }
+                    None => {
+                        panic!("Ret sans Call !");
+                    }
+                }
             }
 
             Instruction::SkipNextInstruction(reg, val) => {
                 let val_reg = self.registers[reg as usize] as u16;
+                println!("{} {} {}", val_reg, val, val_reg == val);
                 if val_reg == val {
                     self.programcounter += 2;
                 }
@@ -183,6 +188,76 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
 
             Instruction::ERROR(nb) => {
                 panic!("Bytecode not understood : {}", nb);
+            }
+
+            Instruction::STORE(a, b) => {
+                self.registers[a as usize] = self.registers[b as usize];
+            }
+
+            Instruction::OR(a, b) => {
+                self.registers[a as usize] = self.registers[a as usize] | self.registers[b as usize];
+            }
+
+            Instruction::AND(a, b) => {
+                self.registers[a as usize] = self.registers[a as usize] & self.registers[b as usize];
+            }
+
+            Instruction::XOR(a, b) => {
+                self.registers[a as usize] = self.registers[a as usize] ^ self.registers[b as usize];
+            }
+
+            Instruction::ADD(a, b) => {
+                let tot = self.registers[a as usize] as usize + self.registers[b as usize] as usize;
+                self.registers[a as usize] = (tot % 256) as u8;
+                self.registers[15] = (tot % 256) as u8;
+            }
+
+            Instruction::SUB(a, b) => {
+                let reg1 = self.registers[a as usize];
+                let reg2 = self.registers[b as usize];
+                self.registers[15] = (reg1 > reg2) as u8;
+                self.registers[a as usize] = reg1.wrapping_sub(reg2);
+            }
+
+            Instruction::SHR(a, _) => {
+                let reg1 = self.registers[a as usize];
+                self.registers[15] = reg1%2;
+                self.registers[a as usize] = self.registers[a as usize] / 2;
+            }
+
+            Instruction::SUBN(a, b) => {
+                let reg1 = self.registers[a as usize];
+                let reg2 = self.registers[b as usize];
+                self.registers[15] = (reg2 > reg1) as u8;
+                self.registers[a as usize] = reg2.wrapping_sub(reg1);
+            }
+
+            Instruction::SHL(a, _) => {
+                let reg1 = self.registers[a as usize];
+                self.registers[15] = (reg1 & 0x80) as u8;
+                self.registers[a as usize] = reg1.wrapping_mul(2);
+            }
+
+            Instruction::AddI(reg) => {
+                self.i += self.registers[reg as usize] as u16;
+            }
+
+            Instruction::ReadDelay(_) |
+
+            Instruction::WaitKey(_) |
+
+            Instruction::SetDelay(_) |
+
+            Instruction::SetSound(_) |
+
+            Instruction::SpriteDigit(_) |
+
+            Instruction::StoreBCD(_) |
+
+            Instruction::StoreRegisters(_) |
+
+            Instruction::ReadRegisters(_)  => {
+                
             }
         }
 

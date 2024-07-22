@@ -12,6 +12,24 @@ pub enum Instruction {
     NSkipNextInstruction(u16, u16),
     R2SkipNextInstruction(u16, u16),
     NR2SkipNextInstruction(u16, u16),
+    STORE(u16, u16),
+    OR(u16, u16),
+    AND(u16, u16),
+    XOR(u16, u16),
+    ADD(u16, u16),
+    SUB(u16, u16),
+    SHR(u16, u16),
+    SUBN(u16, u16),
+    SHL(u16, u16),
+    ReadDelay(u16),
+    WaitKey(u16),
+    SetDelay(u16),
+    SetSound(u16),
+    AddI(u16),
+    SpriteDigit(u16),
+    StoreBCD(u16),
+    StoreRegisters(u16),
+    ReadRegisters(u16),
 
     ERROR(u16), // unknown opcode
 }
@@ -44,12 +62,12 @@ impl Instruction {
             }
 
             (0x3, x, n1, n2) => {
-                let val: u16 = n1 << 8 | n2;
+                let val: u16 = (n1 << 4 | n2) % 256;
                 return Instruction::SkipNextInstruction(x, val);
             }
 
             (0x4, x, n1, n2) => {
-                let val: u16 = n1 << 8 | n2;
+                let val: u16 = (n1 << 4 | n2) % 256;
                 return Instruction::NSkipNextInstruction(x, val);
             }
 
@@ -67,6 +85,42 @@ impl Instruction {
                 return Instruction::AddRegister(x.try_into().unwrap(), val);
             }
 
+            (0x8, x, y, 0x0) => {
+                return Instruction::STORE(x, y);
+            }
+
+            (0x8, x, y, 0x1) => {
+                return Instruction::OR(x, y);
+            }
+
+            (0x8, x, y, 0x2) => {
+                return Instruction::AND(x, y);
+            }
+
+            (0x8, x, y, 0x3) => {
+                return Instruction::XOR(x, y);
+            }
+
+            (0x8, x, y, 0x4) => {
+                return Instruction::ADD(x, y);
+            }
+
+            (0x8, x, y, 0x5) => {
+                return Instruction::SUB(x, y);
+            }
+
+            (0x8, x, y, 0x6) => {
+                return Instruction::SHR(x, y);
+            }
+
+            (0x8, x, y, 0x7) => {
+                return Instruction::SUBN(x, y);
+            }
+
+            (0x8, x, y, 0xE) => {
+                return Instruction::SHL(x, y);
+            }
+
             (0x9, x, y, 0x0) => {
                 return Instruction::NR2SkipNextInstruction(x, y);
             }
@@ -78,6 +132,42 @@ impl Instruction {
 
             (0xd, x, y, n) => {
                 return Instruction::Draw(x, y, n);
+            }
+            
+            (0xf, x, 0x0, 0x7) => {
+                return Instruction::ReadDelay(x);
+            }
+
+            (0xf, x, 0x0, 0xa) => {
+                return Instruction::WaitKey(x);
+            }
+
+            (0xf, x, 0x1, 0x5) => {
+                return Instruction::SetDelay(x);
+            }
+
+            (0xf, x, 0x1, 0x8) => {
+                return Instruction::SetSound(x);
+            }
+
+            (0xf, x, 0x1, 0xe) => {
+                return Instruction::AddI(x);
+            }
+
+            (0xf, x, 0x2, 0x9) => {
+                return Instruction::SpriteDigit(x);
+            }
+
+            (0xf, x, 0x3, 0x3) => {
+                return Instruction::StoreBCD(x);
+            }
+
+            (0xf, x, 0x5, 0x5) => {
+                return Instruction::StoreRegisters(x);
+            }
+
+            (0xf, x, 0x6, 0x5) => {
+                return Instruction::ReadRegisters(x);
             }
 
             _ => {

@@ -3,6 +3,8 @@ use sdl::video::{SurfaceFlag, VideoFlag};
 use sdl::event::{Event, Key};
 use sdl::Rect;
 
+use clap::Parser;
+
 use std;
 
 mod chip8;
@@ -44,8 +46,17 @@ impl KeyboardHandler for BasicKeyboardHandler {
 
 static SIZE: isize = 10;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path of the file to open
+    #[arg(short, long)]
+    file: String,
+}
+
 fn main() {
     // TODO : take a file path in argument and differenciate ch8/a8
+    let args = Args::parse();
 
     sdl::init(&[sdl::InitFlag::Video]);
     sdl::wm::set_caption("Chip-8", "rust-sdl");
@@ -68,7 +79,7 @@ fn main() {
     );
 
     // read bytes from file
-    let content = std::fs::read("roms/IBM Logo.ch8").unwrap();
+    let content = std::fs::read(args.file).unwrap();
     println!("content : {:?}", content);
 
     vm.setmemory(content);
