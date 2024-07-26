@@ -35,6 +35,8 @@ pub enum Instruction {
     ReadRegisters(u16),
     SkipIfPressed(u16),
     SkipIfNotPressed(u16),
+    Random(u16, u16),
+    Jump2(u16),
 
     ERROR(u16), // unknown opcode
 }
@@ -134,6 +136,16 @@ impl Instruction {
             (0xa, n1, n2, n3) => {
                 let val: u16 = n1 << 8 | n2 << 4 | n3;
                 return Instruction::SetI(val);
+            }
+
+            (0xb, n1, n2, n3) => {
+                let val: u16 = n1 << 8 | n2 << 4 | n3;
+                return Instruction::Jump2(val);
+            }
+
+            (0xc, x, n1, n2) => {
+                let val: u16 = n1 << 4 | n2;
+                return Instruction::Random(x, val);
             }
 
             (0xd, x, y, n) => {

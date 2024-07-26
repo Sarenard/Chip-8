@@ -12,6 +12,10 @@ pub trait KeyboardHandler {
     fn is_pressed(&mut self, key: u8) -> bool;
 }
 
+pub trait RandomHandler {
+    fn random(&mut self) -> u8;
+}
+
 static FONT: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -35,7 +39,7 @@ static KEYBOARDMAP: [usize; 16] = [
     13, 0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 14, 3, 7, 11, 15
 ];
 
-pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
+pub struct VM<T: PixelHandler, T2: KeyboardHandler, T3: RandomHandler> {
     pub memory: [u8; 4096], // 4096 bytes
     registers: [u8; 16], // 8-bit data registers
     stack: Vec<u16>,
@@ -45,11 +49,12 @@ pub struct VM<T: PixelHandler, T2: KeyboardHandler> {
     soundtimer: u8,
     pub pixelhandler: T,
     pub keyboardhandler: T2,
+    pub rng: T3,
     framebuffer: [[bool; 32]; 64],
 }
 
-impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
-    pub fn new(pixelhandler: T, keyboardhandler: T2) -> Self {
+impl<T: PixelHandler, T2: KeyboardHandler, T3: RandomHandler> VM<T, T2, T3> {
+    pub fn new(pixelhandler: T, keyboardhandler: T2, randomhandler: T3) -> Self {
         let mut memory: [u8; 4096] = [0; 4096];
         memory[..FONT.len()].copy_from_slice(&FONT);
         VM {
@@ -62,13 +67,15 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             soundtimer: 0,
             pixelhandler,
             keyboardhandler,
+            rng: randomhandler,
             framebuffer: [[false; 32]; 64],
         }
     }
 
     pub fn update_pixel(&mut self, x: usize, y: usize, forceblack: bool) {
         if x >= 64 || y >= 32 {
-            panic!("Out of bounds write");
+            //panic!("Out of bounds write");
+            return;
         }
         if forceblack {
             self.pixelhandler.set_pixel(x, y, false);
@@ -98,6 +105,10 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
         let memory_size = std::cmp::min(content.len(), max_memory_size);
     
         self.memory[0x200..0x200 + memory_size].copy_from_slice(&content[..memory_size]);
+    }
+
+    fn random(&mut self) -> u8 {
+        self.rng.random()
     }
 
     pub fn process(&mut self) {
@@ -281,8 +292,8 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
             }
 
             Instruction::WaitKey(x) => {
-                while !self.check_key(self.registers[KEYBOARDMAP[x as usize]]) {
-
+                if !self.check_key(self.registers[KEYBOARDMAP[x as usize]]) {
+                    self.programcounter -= 2
                 }
             }
 
@@ -302,12 +313,32 @@ impl<T: PixelHandler, T2: KeyboardHandler> VM<T, T2> {
                 }
             }
 
-            Instruction::StoreBCD(_) |
+            Instruction::StoreRegisters(nb) => {
+                for i in 0..nb+1 {
+                    self.memory[self.i as usize + i as usize] = self.registers[i as usize];
+                }
+            }
+            
+            Instruction::ReadRegisters(nb) => {
+                for i in 0..nb+1 {
+                    self.registers[i as usize] = self.memory[self.i as usize + i as usize];
+                }
+            }
 
-            Instruction::StoreRegisters(_) |
+            Instruction::StoreBCD(reg)  => {
+                let val = self.registers[reg as usize];
+                self.memory[self.i as usize + 0] = val / 100;
+                self.memory[self.i as usize + 1] = (val / 10) % 10;
+                self.memory[self.i as usize + 2] = val % 10;
+            }
 
-            Instruction::ReadRegisters(_)  => {
-                todo!()
+            Instruction::Random(x, kk) => {
+                self.registers[x as usize] = self.random() & (kk as u8);
+            }
+
+            Instruction::Jump2(val) => {
+                let reg = self.registers[0];
+                self.programcounter = val as usize + reg as usize;
             }
         }
 

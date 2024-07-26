@@ -4,10 +4,13 @@ use sdl::event::{Event, Key};
 use sdl::Rect;
 
 use core::time;
+use std::time::Duration;
 use std::{
     time::SystemTime,
     thread
 };
+
+use rand::{self, Rng};
 
 use clap::Parser;
 
@@ -17,7 +20,7 @@ mod chip8;
 
 use chip8::vm::{
     KeyboardHandler,
-    PixelHandler,
+    PixelHandler, RandomHandler,
 };
 
 struct BasicPixelHandler<'a> {
@@ -38,19 +41,32 @@ impl<'a> PixelHandler for BasicPixelHandler<'a> {
     }
 }
 
-// Example struct implementing the KeyboardHandler trait
 struct BasicKeyboardHandler {
     status: [bool; 16],
 }
 
 impl KeyboardHandler for BasicKeyboardHandler {
     fn is_pressed(&mut self, key: u8) -> bool {
+        if key > 16 {
+            return false
+        }
         self.status[key as usize]
+    }
+}
+
+struct BasicRandomHandler {
+    rng: rand::rngs::ThreadRng
+}
+
+impl RandomHandler for BasicRandomHandler {
+    fn random(&mut self) -> u8 {
+        self.rng.gen()
     }
 }
 
 static SIZE: isize = 10;
 static FPS: u128 = 60;
+static FREQUENCY: u32 = 500;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -109,10 +125,14 @@ fn run_emulator(path: String, test:bool) {
     let keyboard_handler = BasicKeyboardHandler {
         status: [false; 16],
     };
+    let random_handler = BasicRandomHandler {
+        rng: rand::thread_rng()
+    };
 
     let mut vm = chip8::vm::VM ::new(
         pixel_handler,
-        keyboard_handler
+        keyboard_handler,
+        random_handler
     );
 
     // read bytes from file
@@ -140,7 +160,7 @@ fn run_emulator(path: String, test:bool) {
                     if k == Key::Escape {
                         break 'main;
                     }
-                    if test && is_pressed {
+                    if test && is_pressed && k == Key::Space {
                         thread::sleep(time::Duration::from_millis(500));
                         panic!("Test failed !");
                     }
@@ -158,6 +178,7 @@ fn run_emulator(path: String, test:bool) {
             last = SystemTime::now();
             vm.decrease_timer();
         }
+        thread::sleep(Duration::new(0, 1_000_000_000 / FREQUENCY));
         vm.process();
         vm.pixelhandler.screen.flip();
         #[cfg(debug_assertions)]
