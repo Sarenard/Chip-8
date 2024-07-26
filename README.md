@@ -1,6 +1,6 @@
 # Chip-8
 
-A Chip-8 emulator in rust comporting **1347** lines of code, made in the span of 3 days
+A Chip-8 emulator in rust comporting **855** lines of code, made in the span of 3 days
 
 Run with `cargo run --release -- -f <file path>`
 
